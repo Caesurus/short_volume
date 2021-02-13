@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-
+import argparse
 import csv
 import io
 import sqlite3
+from datetime import datetime, timedelta
 
 import requests
 import requests_ftp
-from datetime import datetime
 
 requests_ftp.monkeypatch_session()
 
@@ -93,21 +93,30 @@ if __name__ == '__main__':
     nasdaq_psx_url = 'ftp://ftp.nasdaqtrader.com/files/shortsaledata/daily/psx'
     nasdaq_bx_url = 'ftp://ftp.nasdaqtrader.com/files/shortsaledata/daily/bx'
 
-    today = datetime.today()
+    parser = argparse.ArgumentParser(description='Put together some charts!!!')
+    parser.add_argument('-d', '--days', default=2, type=int, help='get data from the last x number of days')
+    args = parser.parse_args()
 
-    year = today.year
-    month = today.month
+    last_x_days = args.days
 
-    for i in range(1, today.day+1):
-        day = i
+    for single_date in (datetime.today() - timedelta(days=n) for n in range(last_x_days)):
+        # If this date is a weekend, then don't bother
+        if single_date.weekday() > 4:
+            continue
+
+        print(single_date)
+        year = single_date.year
+        month = single_date.month
+        day = single_date.day
+
         print(f'Processing: {year:}{month:02d}{day:02d}')
-        todays_file = f'NPSXshvol{year:}{month:02d}{day:02d}.txt'
-        data = get_nasdaq_dict(nasdaq_psx_url, todays_file)
+        file_name = f'NPSXshvol{year:}{month:02d}{day:02d}.txt'
+        data = get_nasdaq_dict(nasdaq_psx_url, file_name)
         print(f'PSX, {len(data)}')
         nasdaq_write_to_db(data)
-        #
-        todays_file = f'NQBXshvol{year}{month:02d}{day:02d}.txt'
-        data = get_nasdaq_dict(nasdaq_bx_url, todays_file)
+
+        file_name = f'NQBXshvol{year}{month:02d}{day:02d}.txt'
+        data = get_nasdaq_dict(nasdaq_bx_url, file_name)
         print(f'BX, {len(data)}')
         nasdaq_write_to_db(data)
 
