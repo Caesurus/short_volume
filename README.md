@@ -10,9 +10,9 @@ Never the less, I had a bit of time to throw this together to quickly check vari
 1. create a python3 virtual env using your favorite method: `virtualenv -p python3 short_venv`
 1. activate: `source short_venv/bin/activate`
 1. run `pip3 install -r requirements.txt`
-1. run `populate_short_data.py -d 100`. this will get data for the last 100 days.
+1. run `python populate_short_data.py -d 100`. this will get data for the last 100 days.
     This should create a sqlite DB file in the current directory where you executed the script. You can run this multiple times, it will update existing data in the db.
-1. run `render_chart.py`
+1. run `python render_chart.py`
 ```bash
 usage: render_chart.py [-h] [-a APITOKEN] -d DB
 
@@ -47,5 +47,8 @@ Pick Symbol to track
 
 1. run `populate_short_data.py -d 2` every day to stay up to date with the latest data.
 
-###Screen Shot
+### Browse/Query DB data yourself
+I recommend https://sqlitebrowser.org/ which can be used to look at the data in the DB. There are SQL queries in the code that you can use as examples.
+
+### Screen Shot
 ![Sample Screenshot](./images/example.png)

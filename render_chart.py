@@ -4,6 +4,7 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 import argparse
+import http
 import sqlite3
 import sys
 import urllib
@@ -12,7 +13,6 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
-import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -29,10 +29,9 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 def update_graph(new_symbol):
     # fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig = go.Figure()
-    if not new_symbol:
-        return fig, fig, fig
-    if 'Pick Symbol to track' == new_symbol:
-        return fig, fig, fig
+    if not new_symbol or 'Pick Symbol to track' == new_symbol:
+        tbl = go.Figure(go.Table(header=dict(values=[]), cells=dict(values=[])))
+        return fig, fig, tbl
 
     conn = sqlite3.connect(args.db)
     df = pd.read_sql_query(
@@ -50,10 +49,6 @@ def update_graph(new_symbol):
             # df_symbol_open_close = pd.read_pickle('/tmp/saved.pkl')
             # Add column for diff between open and close
             df_symbol_open_close['diff'] = df_symbol_open_close['close'] - df_symbol_open_close['open']
-            #                secondary_y=True
-
-            marker = plotly.graph_objects.scatter.Marker()
-            # fig.add_trace(go.Scatter(name=f'{new_symbol} Closing Price', x=df_symbol_open_close['date'], y=df_symbol_open_close['close'],opacity=0.4, mode='lines+markers', marker={'symbol':'diamond', 'size': 10}), secondary_y=True)
             fig.add_trace(go.Candlestick(
                 name=f'{new_symbol} Price',
                 x=df_symbol_open_close['date'],
@@ -66,8 +61,7 @@ def update_graph(new_symbol):
             fig.add_trace(
                 go.Bar(name=f'{new_symbol} diff O/C', x=df_symbol_open_close['date'], y=df_symbol_open_close['diff'],
                        opacity=0.4, yaxis='y3', visible='legendonly'))
-            # fig.update_yaxes(title_text="<b>Open/Close</b>", secondary_y=True)
-        except urllib.error.HTTPError:
+        except (urllib.error.HTTPError, http.client.InvalidURL):
             pass
 
     # Edit the layout
