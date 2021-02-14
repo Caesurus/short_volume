@@ -5,6 +5,7 @@
 # visit http://127.0.0.1:8050/ in your web browser.
 import argparse
 import sqlite3
+import sys
 import urllib
 
 import dash
@@ -21,7 +22,9 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
 @app.callback(
-    dash.dependencies.Output('short-data-graph', 'figure'),
+    [dash.dependencies.Output('short-data-graph', 'figure'),
+     dash.dependencies.Output('short-data-graph-raw', 'figure'),
+     dash.dependencies.Output('short-data-table', 'figure')],
     [dash.dependencies.Input('crossfilter-symbol', 'value')])
 def update_graph(new_symbol):
     # fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -33,7 +36,6 @@ def update_graph(new_symbol):
     df = pd.read_sql_query(
         f"SELECT date, short_vol, source || '-' || market AS ID FROM stocks WHERE symbol = '{new_symbol}'",
         conn)
-    conn.close()
     max_date = df['date'].max()
     min_date = df['date'].min()
 
@@ -114,8 +116,26 @@ def update_graph(new_symbol):
         fig.add_trace(go.Scatter(x=x_axis, y=y_axis, mode='lines+markers', name=i))  # , line_shape='spline'))
 
     print(new_symbol)
+
+    df = pd.read_sql_query(
+        f"SELECT date, short_vol, short_exempt_vol, total_vol, (total_vol - (short_vol + short_exempt_vol)) as diff_vol, source || '-' || market AS ID FROM stocks WHERE symbol = '{new_symbol}'",
+        conn)
+
+    tbl = go.Figure(data=[go.Table(
+        header=dict(values=list(df.columns),
+                    fill_color='paleturquoise',
+                    align='left'),
+        cells=dict(values=[df.date, df.short_vol, df.short_exempt_vol, df.total_vol, df.diff_vol, df.ID],
+                   fill_color='lavender',
+                   align='left'))
+    ])
+    fig_raw = go.Figure()
+    for i in reversed(df['ID'].unique()):
+        series = df.loc[df['ID'] == i]
+        fig_raw.add_trace(go.Bar(x=series.date, y=series.short_vol, name=i))
+
     conn.close()
-    return fig
+    return fig, fig_raw, tbl
 
 
 if __name__ == '__main__':
@@ -127,12 +147,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
     API_TOKEN = args.apitoken
 
-    conn = sqlite3.connect(args.db)
-    c = conn.cursor()
-    df_symbols = pd.read_sql_query('SELECT DISTINCT(symbol) FROM stocks ORDER BY symbol', conn)
+    try:
+        conn = sqlite3.connect(args.db)
+        c = conn.cursor()
+        df_symbols = pd.read_sql_query('SELECT DISTINCT(symbol) FROM stocks ORDER BY symbol', conn)
+    except (sqlite3.OperationalError, pd.io.sql.DatabaseError):
+        print('You probably didn\'t generate the DB properly. Make sure to run populate_short_data.py')
+        sys.exit(1)
 
     available_tickers = df_symbols['symbol'].unique()
     fig = make_subplots(specs=[[{"secondary_y": True}]])
+    tbl = go.Figure(go.Table(header=dict(values=[]), cells=dict(values=[])))
 
     app.layout = html.Div(children=[
         html.H1(children=f'Short Data'),
@@ -149,7 +174,16 @@ if __name__ == '__main__':
         dcc.Graph(
             id='short-data-graph',
             figure=fig
+        ),
+        dcc.Graph(
+            id='short-data-graph-raw',
+            figure=fig
+        ),
+        dcc.Graph(
+            id='short-data-table',
+            figure=tbl
         )
+
     ])
 
     app.run_server(debug=True)
