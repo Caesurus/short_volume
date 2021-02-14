@@ -30,7 +30,9 @@ def update_graph(new_symbol):
     # fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig = go.Figure()
     if not new_symbol:
-        return fig
+        return fig, fig, fig
+    if 'Pick Symbol to track' == new_symbol:
+        return fig, fig, fig
 
     conn = sqlite3.connect(args.db)
     df = pd.read_sql_query(
