@@ -52,3 +52,5 @@ I recommend https://sqlitebrowser.org/ which can be used to look at the data in 
 
 ### Screen Shot
 ![Sample Screenshot](./images/example.png)
+![Sample Screenshot](./images/example_2.0.png)
+![Sample Screenshot](./images/example_2.1.png)
