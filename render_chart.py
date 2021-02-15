@@ -24,14 +24,15 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 @app.callback(
     [dash.dependencies.Output('short-data-graph', 'figure'),
      dash.dependencies.Output('short-data-graph-raw', 'figure'),
-     dash.dependencies.Output('short-data-table', 'figure')],
+     dash.dependencies.Output('short-data-table', 'figure'),
+     dash.dependencies.Output('short-data-graph-percent_total', 'figure')],
     [dash.dependencies.Input('crossfilter-symbol', 'value')])
 def update_graph(new_symbol):
     # fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig = go.Figure()
     if not new_symbol or 'Pick Symbol to track' == new_symbol:
         tbl = go.Figure(go.Table(header=dict(values=[]), cells=dict(values=[])))
-        return fig, fig, tbl
+        return fig, fig, tbl, fig
 
     conn = sqlite3.connect(args.db)
     df = pd.read_sql_query(
@@ -126,24 +127,48 @@ def update_graph(new_symbol):
     print(new_symbol)
 
     df = pd.read_sql_query(
-        f"SELECT date, short_vol, short_exempt_vol, total_vol, (total_vol - (short_vol + short_exempt_vol)) as diff_vol, source || '-' || market AS ID FROM stocks WHERE symbol = '{new_symbol}'",
+        f"SELECT date, short_vol, short_exempt_vol, total_vol, (total_vol - (short_vol+short_exempt_vol)) as diff_vol, ((short_vol+short_exempt_vol)* 1.0/total_vol)*100 as scale_vol,source || '-' || market AS ID FROM stocks WHERE symbol = '{new_symbol}' ORDER BY date",
         conn)
 
     tbl = go.Figure(data=[go.Table(
         header=dict(values=list(df.columns),
                     fill_color='paleturquoise',
                     align='left'),
-        cells=dict(values=[df.date, df.short_vol, df.short_exempt_vol, df.total_vol, df.diff_vol, df.ID],
+        cells=dict(values=[df.date, df.short_vol, df.short_exempt_vol, df.total_vol, df.diff_vol, df.scale_vol, df.ID],
                    fill_color='lavender',
                    align='left'))
     ])
-    fig_raw = go.Figure()
+    fig_volumes = go.Figure()
+    fig_volumes.update_layout(title='Short Volume')
+
     for i in reversed(df['ID'].unique()):
         series = df.loc[df['ID'] == i]
-        fig_raw.add_trace(go.Bar(x=series.date, y=series.short_vol, name=i))
+        fig_volumes.add_trace(go.Bar(x=series.date, y=series.short_vol, name=i))
+
+    sql_query = f"""
+        SELECT date,
+               short_vol,
+               short_exempt_vol,
+               total_vol,
+               ( short_vol + short_exempt_vol ) / total_vol AS scale_vol
+        FROM   (SELECT date,
+                       Sum(short_vol)        AS short_vol,
+                       Sum(short_exempt_vol) AS short_exempt_vol,
+                       Sum(total_vol)        AS total_vol
+                FROM   stocks
+                WHERE  symbol = '{new_symbol}'
+                GROUP  BY date,
+                          symbol
+                ORDER  BY date);
+  """
+    df = pd.read_sql_query(sql_query, conn)
+
+    fig_percent = go.Figure()
+    fig_percent.update_layout(title='Short Volume as Percentage of Total')
+    fig_percent.add_trace(go.Scatter(x=df.date, y=df.scale_vol, name=f'{i}(shorts as percent of total volume)'))
 
     conn.close()
-    return fig, fig_raw, tbl
+    return fig, fig_volumes, tbl, fig_percent
 
 
 if __name__ == '__main__':
@@ -185,6 +210,10 @@ if __name__ == '__main__':
         ),
         dcc.Graph(
             id='short-data-graph-raw',
+            figure=fig
+        ),
+        dcc.Graph(
+            id='short-data-graph-percent_total',
             figure=fig
         ),
         dcc.Graph(
