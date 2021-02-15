@@ -111,6 +111,19 @@ def update_graph(new_symbol):
         y_axis = normalized_df['short_vol']
         fig.add_trace(go.Scatter(x=x_axis, y=y_axis, mode='lines+markers', name=i))  # , line_shape='spline'))
 
+    fig.update_xaxes(
+        rangeslider_visible=True,
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(count=1, label="YTD", step="year", stepmode="todate"),
+                dict(count=1, label="1y", step="year", stepmode="backward"),
+                dict(step="all")
+            ])
+        )
+    )
+
     print(new_symbol)
 
     df = pd.read_sql_query(
