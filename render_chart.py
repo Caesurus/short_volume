@@ -150,7 +150,7 @@ def update_graph(new_symbol):
                short_vol,
                short_exempt_vol,
                total_vol,
-               ( short_vol + short_exempt_vol ) / total_vol AS scale_vol
+               (short_vol*1.0)/total_vol AS scale_vol
         FROM   (SELECT date,
                        Sum(short_vol)        AS short_vol,
                        Sum(short_exempt_vol) AS short_exempt_vol,
