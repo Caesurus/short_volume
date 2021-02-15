@@ -15,7 +15,6 @@ import dash_html_components as html
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from sklearn.preprocessing import RobustScaler, MinMaxScaler
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -106,7 +105,7 @@ def update_graph(new_symbol):
 
     for i in reversed(df['ID'].unique()):
         series = df.loc[df['ID'] == i]
-        normalized_df = (series-series.mean())/series.std()
+        normalized_df = (series - series.mean()) / series.std()
         x_axis = series['date']
         y_axis = normalized_df['short_vol']
         fig.add_trace(go.Scatter(x=x_axis, y=y_axis, mode='lines+markers', name=i))  # , line_shape='spline'))
